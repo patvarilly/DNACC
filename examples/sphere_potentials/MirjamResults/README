@@ -1,0 +1,27 @@
+********************************************************************************************
+********************************************************************************************
+Copyright: Mirjam E. Leunissen, FOM Institute AMOLF, The Netherlands - 11 October 2010		
+No restrictions apply to the usage of this program provided that users cite:
+M.E. Leunissen and D. Frenkel, J. Chem. Phys. 134, 084702 (2011), doi: 10.1063/1.3557794		
+********************************************************************************************
+********************************************************************************************
+
+This program generates the DNA-mediated pair interaction potentials for planar surfaces		
+and spherical particles, functionalized with stiff DNA constructs of Ldna = 20 nm long at	
+the user-defined average strand spacing or surface coverage (S), the DNA binding		
+strength (G) and the particle radius (R).													
+The derivation of the analytical expressions and the working range of these pair		
+interactions can be found in Section IV and the rest of:
+M.E. Leunissen and D. Frenkel, J. Chem. Phys. 134, 084702 (2011), doi: 10.1063/1.3557794								
+--------------------------------------------------------------------------------------------
+
+Basic use:
+- define the system parameters in run.sh and run this shell script (Unix command: ./run.sh)
+
+Advanced use (if you want to change output formats or other parameters):
+- make your modifications in DNAPairPotentials.f
+- choose your FORTRAN compiler in the makefile (default is g95)
+- issue the 'make all' command in Unix
+- define the system parameters in run.sh and run this shell script (Unix command: ./run.sh)
+
+---------------------------------------------------------------------------------------------

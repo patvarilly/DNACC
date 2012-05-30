@@ -1,0 +1,25 @@
+BEGIN{
+
+    NDG=200;
+    for(i=1;i<=NDG;i++){
+	Qxy[i] = 0;
+	NQxy[i]= 0;
+    }
+
+}{
+
+    ind = NR%NDG ;
+    if(ind == 0){
+	ind = 200 ;
+    }
+    DG[ind]=$1;
+    Qxy[ind]=Qxy[ind]+$2;  
+    NQxy[ind]=NQxy[ind]+1; 
+
+}END{
+
+    for(ind=1; ind<=NDG; ind++){
+	{print T, ens, DG[ind], Qxy[ind]/NQxy[ind]};
+    }
+
+}

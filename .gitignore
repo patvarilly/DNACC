@@ -1,0 +1,8 @@
+dnacc/version.py
+dnacc.egg-info
+*.pyc
+*.pyo
+*.so
+build
+MANIFEST
+docs/_build

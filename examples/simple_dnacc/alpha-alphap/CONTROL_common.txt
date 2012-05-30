@@ -1,0 +1,36 @@
+# Copyright 2012 Patrick Varilly, Stefano Angioletti-Uberti
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+geometry = 'plates'
+construct = 'rods'
+
+L['alpha'] = 20 * nm
+L['alphap'] = 20 * nm
+
+R[0] = 125.0 * nm
+R[1] = 125.0 * nm
+
+sigma['upper']['alpha'] = 1 / (20.0 * nm) ** 2
+sigma['lower']['alphap'] = 1 / (20.0 * nm) ** 2
+
+box[0] = 200 * nm
+box[1] = 200 * nm
+area = box[0] * box[1]
+
+num_type['upper']['alpha'] = int(area * sigma['upper']['alpha'])
+num_type['lower']['alphap'] = int(area * sigma['lower']['alphap'])
+
+# max_num_sample sample of temperatures are calculate between dgMax and +10 
+max_num_samples = 21

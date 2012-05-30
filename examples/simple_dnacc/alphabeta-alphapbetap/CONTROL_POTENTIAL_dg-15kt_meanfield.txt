@@ -1,0 +1,43 @@
+# Copyright 2012 Patrick Varilly, Stefano Angioletti-Uberti
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+geometry = 'plates'
+construct = 'rods'
+
+alpha=1
+beta=2
+alphap=3
+betap=4
+
+dg[alpha,alphap] = -15
+dg[alpha,beta] = -10
+dg[alphap,betap] = dg[alpha,beta] 
+
+L[alpha]=L[alphap]=L[beta]=L[betap]= 20*nm
+
+sigma['plate1'][alpha] = 1 / (20.0*nm)**2
+sigma['plate1'][beta] = 1 / (20.0*nm)**2
+sigma['plate2'][alphap] = 1 / (20.0*nm)**2
+sigma['plate2'][betap] = 1 / (20.0*nm)**2
+
+box_length=14.14*20*nm
+box[0] = box[1]= box_length
+
+distance = 20.0*nm
+max_num_samples = 40 
+
+explicit = False 
+calculation = 'potential'
+output_file = "OUTPUT_mean_-15kt"

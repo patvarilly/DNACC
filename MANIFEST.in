@@ -1,0 +1,17 @@
+include COPYING.txt
+include check_style.sh
+include simple_dnacc
+recursive-include examples *.txt *.py *.gp
+recursive-include examples/sphere_potentials/MirjamResults *
+recursive-exclude examples/ssDNA_tethers *.txt
+recursive-include examples/ssDNA_tethers *.dat
+recursive-exclude examples/explicit_simple_plates *.txt
+recursive-include examples/explicit_simple_plates mc_*.txt
+recursive-include examples/explicit_simple_plates *.dat
+recursive-exclude examples/explicit_competing_linkages *.txt
+recursive-include examples/explicit_competing_linkages/CompetingData *
+recursive-include examples/rogers_crocker_spheres/mc_results_bortolo *
+recursive-exclude examples/rogers_crocker_spheres/results *
+recursive-include examples/simple_dnacc *
+
+recursive-include docs *

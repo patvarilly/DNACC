@@ -1,0 +1,623 @@
+#!/usr/bin/env python
+
+# Copyright 2012 Patrick Varilly, Stefano Angioletti-Uberti
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# simple_dnacc
+#
+# Written by Stefano Angioletti-Uberti and Patrick Varilly, March 2012
+#
+# python simple_dnacc.py INPUTFILE
+#
+# Reads an input file (by interpreting it with Python), set up the necessary
+# calculation.
+#
+# See examples/simple_dnacc for an example INPUTFILE
+
+import sys
+if len(sys.argv) != 2:
+    print "Usage: simple_dnacc INPUTFILE"
+    raise SystemExit()
+
+import dnacc
+from dnacc.units import nm
+from dnacc.utils import *
+import numpy as np
+from math import pi, sqrt, sin, cos, acos
+import scipy.interpolate
+from collections import defaultdict
+import os.path
+
+# The input file should fill in most of these fields
+geometry = None
+construct = None
+calculation = None
+output_file = None
+predefined_patches=False
+dg = SymDict()             # dg[a,b] = Binding energy of a<-->b, in kT
+sigma = defaultdict(dict)  # sigma[plate][a]: Density of a strands in plate
+L = dict()
+R = dict()
+sphere_centre = dict()
+patch_types = defaultdict(dict)
+patches_on = defaultdict(dict)
+box = np.array([0.0, 0.0, 0.0])
+num_type = defaultdict(dict)  # num_type[plate][tether_type]
+explicit = False
+generate_explicit_tethers = True
+force_generate_explicit_tethers = False
+explicit_tethers_file = "EXPLICIT_TETHERS.dat"
+
+# A useful function to replace execfile()
+def include(filename):
+    
+    # A bit of black magic to get the caller's local variables dictionary
+    try:
+        None.x = 0
+    except Exception as e:
+        caller_locals = sys.exc_info()[2].tb_frame.f_back.f_locals
+    
+    with open(filename, "r") as f:
+        exec(f.read() + "\n", globals(), caller_locals)
+
+# Process input file
+input_file = sys.argv[1]
+include(input_file)
+
+# Print out basic info
+print "geometry set to:", geometry
+print "calculation set to:", calculation
+print "construct set to:", construct
+
+# Check that global control variables have sensible values
+for name, valid_inputs in (
+    dict(
+        geometry=["plates", "spheres"],
+        calculation=["potential", "number of bonds",
+                     "potential vs temperature"],
+        construct=["rods", "ssdna"],
+        ).iteritems()):
+
+    if globals()[name] not in valid_inputs:
+        raise ValueError("Unrecognised %s" % name)
+
+if geometry == "spheres":
+    for S, R_S in R.iteritems():
+        print "Radius of sphere %s: %g nm" % (str(S), R_S / nm)
+
+# Extract set of strand types and names of plates/spheres/patches
+strand_types = set()
+for t_i, t_j in dg.iterkeys():
+    strand_types.add(t_i)
+    strand_types.add(t_j)
+for sigma_plate in sigma.itervalues():
+    if isinstance(sigma_plate, dict):
+        for t in sigma_plate.iterkeys():
+            strand_types.add(t)
+for t in L.iterkeys():
+    strand_types.add(t)
+for num_type_plate in num_type.itervalues():
+    if isinstance(num_type_plate, dict):
+        for t in num_type_plate.iterkeys():
+            strand_types.add(t)
+
+if predefined_patches:
+    for patch_t in patch_types.iterkeys():
+        for t in patch_types[patch_t]['sticky_end'].iterkeys():
+            strand_types.add(t)
+    for particle in patches_on.iterkeys():
+        for patch in patches_on[particle].iterkeys():
+            for t_type in patch_types[patch]['sticky_end'].iterkeys():
+                num_type[particle][t_type] = (
+                    patch_types[patch]['sticky_end'][t_type]['number'])
+
+
+particle_names = set()
+for particle in sigma.iterkeys():
+    particle_names.add(particle)
+for particle in num_type.iterkeys():
+    particle_names.add(particle)
+for particle in patches_on.iterkeys():
+    particle_names.add(particle)
+
+patch_names = set()
+for patch in patch_types.iterkeys():
+    patch_names.add(patch)
+
+# Use the previous information to fully build the patches
+
+print "Strand types: " + ', '.join(str(x) for x in strand_types)
+if geometry == 'plates':
+    print "Plate names: " + ', '.join(str(x) for x in particle_names)
+elif geometry == 'spheres':
+    print "Sphere names: " + ', '.join(str(x) for x in particle_names)
+else:
+    raise NotImplementedError()
+
+if not strand_types:
+    raise ValueError("No strand types defined!")
+if not particle_names:
+    if geometry == 'plates':
+        raise ValueError("No plates defined!")
+    elif geometry == 'spheres':
+        raise ValueError("No spheres defined!")
+    else:
+        raise NotImplementedError()
+
+# Here you define the main object of your calculation
+# Sphere-sphere potentials calculated using the Derjaguin approximation
+if not explicit:
+    system = plates = dnacc.PlatesMeanField()
+else:
+    if geometry == 'plates':
+        system = plates = dnacc.Plates(box[0], box[1], periodic=True)
+    elif geometry == 'spheres':
+        system = spheres = dnacc.Spheres()
+        for x in particle_names:
+            spheres.add_sphere(x, sphere_centre[x], R[x])
+    else:
+        raise NotImplementedError()
+
+Lmin = min(L.itervalues())
+Lmax = max(L.itervalues())
+print("Strand lengths range from %g nm to %g nm" %
+      ((Lmin / nm), (Lmax / nm)))
+
+if geometry == 'spheres':
+    Rmin = min(R.itervalues())
+    Rmax = max(R.itervalues())
+    print("Sphere radii range from %g nm to %g nm" %
+          ((Rmin / nm), (Rmax / nm)))
+
+dgmin = min(dg.itervalues())
+print("Minimum bond strength: %g kT" % dgmin)
+
+if explicit:
+
+    # May need to generate explicit tethers first
+    if (generate_explicit_tethers and os.path.exists(explicit_tethers_file)
+        and not force_generate_explicit_tethers):
+        
+        print("Explicit tethers file '%s' will be used instead of \n"
+              "    generating a new set of tethers.  Set "
+              "force_generate_explicit_tethers\n"
+              "    to True to override this behaviour." %
+              explicit_tethers_file)
+
+    if (force_generate_explicit_tethers or
+        (generate_explicit_tethers and
+         not os.path.exists(explicit_tethers_file))):
+        
+        with open(explicit_tethers_file, 'w') as f:
+            if geometry == 'plates':
+                particle_label = 'plate'
+            elif geometry == 'spheres':
+                particle_label = 'sphere'
+            else:
+                raise NotImplementedError
+
+            f.write('# x (nm)\t' 'y (nm)\t' 'z (nm)\t' 'type\t'
+                    + particle_label + '\n')
+
+            if not predefined_patches:
+                for p, num_type_p in num_type.iteritems():
+                    for t_type, num_type_t in num_type_p.iteritems():
+                        if geometry == 'plates':
+                            for sx, sy in np.random.random_sample((num_type_t, 2)):
+                                x, y = sx * box[0], sy * box[1]
+                                # The z coordinate is ignored when dealing
+                                # with plates.  Instead, plates are
+                                # differentiated by their name.  Here, for
+                                # informational purposes *only*, if one of
+                                # the plate names is 'upper', we set the z
+                                # coordinates to z = distance, otherwise to
+                                # 0
+                                if p == 'upper':
+                                    f.write('%.7g\t%.7g\t%.7g\t%s\t%s\n' %
+                                            (x, y, distance,
+                                             str(t_type), str(p)))
+                                else:
+                                    f.write('%.7g\t%.7g\t%.7g\t%s\t%s\n' %
+                                            (x, y, 0.0,
+                                             str(t_type), str(p)))
+                        elif geometry == 'spheres':
+                            for tether in xrange(num_type_t):
+                                r = spheres.sphere_info[p]['radius']
+                                x, y, z = random_point_sphere(r)
+                                f.write('%.7g\t%.7g\t%.7g\t%s\t%s\n' %
+                                        (x, y, z, str(t_type), str(p)))
+                        else:
+                            raise NotImplementedError()
+                        
+            else: # predefined_patches == True
+                
+                # Build the patch and then add it, this automatically adds
+                # the correct strands
+                for sphere_t in patches_on:
+                    for name in patch_names:
+                        if name in patches_on[sphere_t]:
+
+                            raise NotImplementedError("Not quite sure how "
+                                                      "to incorporate this "
+                                                      "part")
+
+                            properties = dict()
+                            properties.update(patch_types[name])
+                            properties.update(patches_on[sphere_t][name])
+                            dnacc.patches.add_circular_patch_to_sphere(
+                                spheres, centre=(0.0, 0.0, 0.0),
+                                angular_aperture=0.0, N=0,
+                                sphere=sphere_t, **properties)
+                            
+                            #patch_info_i=dict()
+                            #patch_info_i['sphere']=sphere_t
+                            #patch_info_i.update(patch_types[name])
+                            #patch_info_i.update(patches_on[sphere_t][name])
+                            # Ok, now add the patch!
+                            #spheres.add_circular_patch(patch_info_i)
+                            
+                # OK, now that you added all the patches, extract the
+                # strands types from the system and print it!
+                for t in spheres.tethers:
+                    x, y, z = t['pos']
+                    t_type = t['sticky_end']
+                    p = t['sphere']
+                    f.write('%.7g\t%.7g\t%.7g\t%s\t%s\n' %
+                            (x, y, z, str(t_type), str(p)))
+                                
+    # Read in grafting points
+    tethers = np.loadtxt(
+        explicit_tethers_file,
+        dtype={'names': ('x', 'y', 'z', 'type', 'particle'),
+               'formats': ('d', 'd', 'd', 'S25', 'S25')})
+
+    print "Number of explicit tethers: %d" % tethers.shape[0]
+
+    # Set up system, and record strand ids of each strand type
+    strands_of_type = defaultdict(set)
+    strand_id = -1
+    for t in tethers:
+        # Convert integer types to int (instead of str)
+        try:
+            t_type = int(t['type'])
+        except ValueError:
+            t_type = t['type']
+
+        try:
+            p_name = int(t['particle'])
+        except ValueError:
+            p_name = t['particle']
+
+        if geometry == 'plates':
+            strand_id = plates.add_tether(
+                L=L[t_type], plate=p_name, sticky_end=t_type,
+                pos=(t['x'] / nm, t['y'] / nm))
+        elif geometry == 'spheres':
+            if not predefined_patches:
+                strand_id = spheres.add_tether(
+                    L=L[t_type], sphere=p_name, sticky_end=t_type,
+                    pos=(t['x'] / nm, t['y'] / nm, t['z'] / nm))
+            else:
+                # In this case, tethers were already put into your system
+                strand_id += 1
+        else:
+            raise NotImplementedError()
+
+        if t_type not in strand_types:
+            strand_types.add(t_type)
+            print("Added strand type %s while reading %s "
+                  "(it won't bind to anything, though!)" %
+                  (str(t_type), explicit_tethers_file))
+
+        strands_of_type[t_type, p_name].add(strand_id)
+
+else:
+
+    # Add strands to each plate, and keep track of the set of strand
+    # types with each sticky end
+    # Strands with the same sticky end but on different plates / spheres
+    # are also put in different sets to distinguish between inter- (bridges)
+    # and intra- (loops) particle bonds!
+    strands_of_type = defaultdict(set)
+    for plate, plate_sigmas in sigma.iteritems():
+        for t_type, t_sigma in plate_sigmas.iteritems():
+            if t_sigma < 0:
+                raise ValueError("Negative density %g nm^-2 "
+                                 "of strands of type %s on plate %s" %
+                                 (t_sigma / (1 / nm ** 2),
+                                  str(t_type), str(plate)))
+
+            strand_id = plates.add_tether_type(L=L[t_type],
+                                               plate=plate,
+                                               sigma=t_sigma,
+                                               sticky_end=t_type)
+
+            strands_of_type[t_type, plate].add(strand_id)
+            strand_type = plates.tether_types[strand_id]
+            print("strand id %d, plate %s, "
+                  "number of strands (in Lmax^2 area) %g, "
+                  "length %g nm, type %s" %
+                  (strand_id,
+                   str(strand_type["plate"]),
+                   strand_type["sigma"] * Lmax ** 2,
+                   strand_type["L"] / nm,
+                   str(strand_type["sticky_end"])))
+
+# Set values of DeltaG0
+for (t_type1, t_type2), dg0 in dg.iteritems():
+    system.beta_DeltaG0[t_type1, t_type2] = dg0
+
+# Now do calculations
+if geometry == "spheres" and calculation == "potential" and not explicit:
+
+    # First, plate-plate potential
+    plates.at(2.1 * Lmax).set_reference_now()
+    hArr = np.linspace(1 * nm, 2 * Lmax, max_num_samples)
+    betaFPlate = [plates.at(h).free_energy_density for h in hArr]
+
+    # Second, Derjaguin approximation
+    print "Sphere potential in file", output_file
+    betaFSphere = dnacc.calc_spheres_potential(hArr, betaFPlate,
+                                               R[0], R[1])
+    with open(output_file, 'w') as f:
+
+        f.write('# h / Lmax\t' 'F_sphere (kT)\n')
+        for h, V in zip(hArr, betaFSphere):
+            f.write('%.7g\t%.7g\n' % (h / Lmax, V))
+
+if geometry == "spheres" and calculation == "potential" and explicit:
+
+    raise NotImplementedError("TODO: Complete this portion of the script")
+
+    # Set the reference state to a collection of noninteracting spheres
+    current_centres = dict()
+    count = 0
+    for sph, info in spheres.sphere_info.iteritems():
+        
+        current_centres[sph] = info['centre']
+        
+        if construct == 'rods':
+            info['centre'] = (0.0, 0.0, 2.1 * count * (Rmax + Lmax))
+            count += 1
+        else:
+            raise NotImplementedError(
+                'Need to set Lmax = segment_length * max_num_segment.')
+    spheres.update()
+    
+    spheres.set_reference_now()
+
+    for sph, info in spheres.sphere_info.iteritems():
+        info['centre'] = current_centres[sph]
+    spheres.update()
+
+    # Now calculate potentials
+    print "Explicit sphere potential in file", output_file
+
+    with open(output_file, 'w') as f:
+
+        f.write('# h / Lmax\t'
+                'F_rep (kT)\t' 'F_att (kT)\t'
+                'F_plate (kT)\n')
+
+        #STEFANO. HEEEEEEEEELP
+        #OK, THE IDEA HERE IS TO BASICALLY SAMPLE THE ANGLES AT A GIVEN
+        #DISTANCE (unlike for plates where you sample from ~0 to 2Lmax)
+        #SO: 1 set the rotation, this mean you have to recalculate
+        #all the entropic factors
+
+        #for h in np.linspace(1*nm, 2*Lmax, 40):
+        #    plates.at(h)
+        #    if explicit:
+        #        betaFRep = plates.rep_free_energy / (box[0]*box[1])
+        #        betaFAtt = plates.binding_free_energy / (box[0]*box[1])
+        #    else:
+        #        betaFRep = plates.rep_free_energy_density
+        #        betaFAtt = plates.binding_free_energy_density
+        #
+        #    betaFPlate = betaFRep + betaFAtt
+        #    print betaFPlate
+
+        #    f.write('%.7g\t%.7g\t%.7g\t%.7g\n'
+        #            % (h / Lmax,
+        #               betaFRep / (1 / Lmax**2),
+        #               betaFAtt / (1 / Lmax**2),
+        #               betaFPlate / (1 / Lmax**2)))
+        betaFRep = spheres.rep_free_energy
+        betaFAtt = spheres.binding_free_energy
+        betaFTot = betaFRep + betaFAtt
+        print 'prova!', betaFTot
+
+
+elif geometry == "plates" and calculation == "potential":
+
+    # First, plate-plate potential
+    plates.at(2.1 * Lmax).set_reference_now()
+
+    print "Plate potential in file", output_file
+    with open(output_file, 'w') as f:
+
+        f.write('# h / Lmax\t'
+                'F_rep (kT / Lmax^2)\t' 'F_att (kT / Lmax^2)\t'
+                'F_plate (kT / Lmax^2)"))\n')
+        for h in np.linspace(1 * nm, 2 * Lmax, max_num_samples):
+            plates.at(h)
+            if explicit:
+                betaFRep = plates.rep_free_energy / (box[0] * box[1])
+                betaFAtt = plates.binding_free_energy / (box[0] * box[1])
+            else:
+                betaFRep = plates.rep_free_energy_density
+                betaFAtt = plates.binding_free_energy_density
+
+            betaFPlate = betaFRep + betaFAtt
+
+            f.write('%.7g\t%.7g\t%.7g\t%.7g\n'
+                    % (h / Lmax,
+                       betaFRep / (1 / Lmax ** 2),
+                       betaFAtt / (1 / Lmax ** 2),
+                       betaFPlate / (1 / Lmax ** 2)))
+
+elif geometry == "plates" and calculation == "potential vs temperature":
+
+    print "Plate potential in file", output_file
+    with open(output_file, 'w') as f:
+
+        f.write('# dgmin\t'
+                'F_rep (kT / Lmax^2)\t' 'F_att (kT / Lmax^2)\t'
+                'F_plate (kT / Lmax^2)\n')
+
+        orig_beta_DeltaG0 = dict(plates.beta_DeltaG0)
+        for deltag in np.linspace(0, 10.0 - dgmin, max_num_samples):
+            for binding_pair in orig_beta_DeltaG0:
+                plates.beta_DeltaG0[binding_pair] = (
+                    orig_beta_DeltaG0[binding_pair] + deltag)
+
+            # If intra-particle bonding is possible, the free energy of
+            # the reference state must be recalculated for every deltag
+            print "There's a better way to do this"
+            plates.at(2.1 * Lmax).set_reference_now()
+            plates.at(distance)
+            plates.update()
+
+            if explicit:
+                betaFRep = plates.rep_free_energy / (box[0] * box[1])
+                betaFAtt = plates.binding_free_energy / (box[0] * box[1])
+            else:
+                betaFRep = plates.rep_free_energy_density
+                betaFAtt = plates.binding_free_energy_density
+
+            betaFPlate = betaFRep + betaFAtt
+
+            f.write('%.7g\t%.7g\t%.7g\t%.7g\n'
+                    % (dgmin + deltag,
+                       betaFRep / (1 / Lmax ** 2),
+                       betaFAtt / (1 / Lmax ** 2),
+                       betaFPlate / (1 / Lmax ** 2)))
+
+elif geometry == "plates" and calculation == "number of bonds":
+
+    print("Calculate number of bonds at distance %g nm" % (distance / nm))
+    print("Plate file with number of bonds in %s" % output_file)
+
+    if not explicit:
+
+        # Mean-field
+        plates.at(distance)
+        plates.update()
+
+        with open(output_file, 'w') as f:
+            f.write('# beta * DeltaGMin\t' 'nbonds-inter\n')
+            
+            orig_beta_DeltaG0 = dict(plates.beta_DeltaG0)
+
+            for deltag in np.linspace(0, 10.0 - dgmin, max_num_samples):
+                for binding_pair in orig_beta_DeltaG0:
+                    plates.beta_DeltaG0[binding_pair] = (
+                        orig_beta_DeltaG0[binding_pair] + deltag)
+
+                plates.update()
+                set_calculated_couples = set()
+                
+                max_strand = len(plates.tether_types)
+                for strand1 in xrange(max_strand):
+                    for strand2 in xrange(max_strand):
+                        couple = tuple(sorted((strand1, strand2)))
+                        type1 = plates.tether_types[strand1]['sticky_end']
+                        type2 = plates.tether_types[strand2]['sticky_end']
+                        plate1 = plates.tether_types[strand1]['plate']
+                        plate2 = plates.tether_types[strand2]['plate']
+                        
+                        if (couple not in set_calculated_couples and
+                            (type1, type2) in orig_beta_DeltaG0):
+                            
+                            couple_key = ('%s %s/%s %s' %
+                                          (str(type1), str(plate1),
+                                           str(type2), str(plate2)))
+                            
+                            set_calculated_couples.add(couple)
+                            num_bonds = plates.sigma_bound[couple]
+                            f.write('%g\t%g\t%s\n' %
+                                    (dgmin + deltag,
+                                     num_bonds, couple_key))
+    else:
+
+        # Explicit-tethers
+        print('Calculating entropic costs at distance %g nm' %
+              (distance / nm))
+        plates.at(distance)
+        plates.update()
+        print 'Done'
+
+        with open(str(output_file), 'w') as f:
+            f.write('# beta * DeltaGMin\t' 'nbonds (xtype)\n')
+
+            orig_beta_DeltaG0 = dict(plates.beta_DeltaG0)
+            for deltag in np.linspace(0, 10.0 - dgmin, max_num_samples):
+                for binding_pair in orig_beta_DeltaG0:
+                    plates.beta_DeltaG0[binding_pair] = (
+                        orig_beta_DeltaG0[binding_pair] + deltag)
+
+                plates.update(DeltaG0_only=True)
+
+                # Count bonds by type
+                set_calculated_couples = set()
+                for j in strands_of_type.iterkeys():
+                    for k in strands_of_type.iterkeys():
+                        type_j = j[0]
+                        type_k = k[0]
+                        if (type_j, type_k) in orig_beta_DeltaG0:
+                            couple = tuple(sorted((j, k)))
+                            
+                            if couple not in set_calculated_couples:
+                                set_calculated_couples.add(couple)
+                                num_bonds = plates.count_bonds(
+                                    strands_of_type[j],
+                                    strands_of_type[k]) / (box[0] * box[1])
+                                f.write('%g\t%g\t%s\n' %
+                                        (dgmin + deltag,
+                                         num_bonds, couple))
+
+if predefined_patches and calculation == "number of bonds":
+
+    print "Calculate number of bonds at distance:", distance
+    print "Number of bonds in", output_file
+    print 'Calculate entropic costs for current configuration'
+    spheres.update()
+    
+    with open(str(output_file), 'w') as f:
+        f.write('# beta * DeltaGMin\t' 'nbonds (xtype)\n')
+    
+        orig_beta_DeltaG0 = dict(spheres.beta_DeltaG0)
+        for deltag in np.linspace(0, 10.0 - dgmin, max_num_samples):
+            for binding_pair in orig_beta_DeltaG0:
+                spheres.beta_DeltaG0[binding_pair] = (
+                    orig_beta_DeltaG0[binding_pair] + deltag)
+            
+            spheres.update(DeltaG0_only=True)
+
+            set_calculated_couples = set()
+            for j in strands_of_type.iterkeys():
+                for k in strands_of_type.iterkeys():
+                    type_j = j[0]
+                    type_k = k[0]
+                    if (type_j, type_k) in orig_beta_DeltaG0:
+                        couple = tuple(sorted((j, k)))
+                        if couple not in set_calculated_couples:
+                            set_calculated_couples.add(couple)
+                            num_bonds = plates.count_bonds(
+                                strands_of_type[j],
+                                strands_of_type[k])
+                            f.write('%g\t%g\t%s\n' %
+                                    (dgmin + deltag,
+                                     num_bonds, couple))

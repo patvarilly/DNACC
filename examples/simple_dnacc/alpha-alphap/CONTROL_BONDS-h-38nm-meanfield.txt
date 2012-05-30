@@ -1,0 +1,36 @@
+# Copyright 2012 Patrick Varilly, Stefano Angioletti-Uberti
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Run this calculation as follows:
+#
+#   python simple_dnacc.py CONTROL
+#
+#INPUT FILE THAT DETERMINES THE SPECIFIC TYPE OF CALCULATION PERFORMED.
+#SHOULD BE ABSOLUTELY EASY TO READ AND CHANGE TO GET ANY TYPE OF CALCULATIONS
+#THAT CAN ACTUALLY BE DONE WITH THIS CODE
+
+include("CONTROL_common.txt")
+
+dg['alpha', 'alphap'] = -30
+
+# Distance between plates or centre of spheres, depending on which case we
+# consider
+distance = 38.0*nm
+
+explicit = False
+
+max_num_samples = 400
+calculation = 'number of bonds'
+output_file = "BONDS-h-38nm-meanfield.dat"
