@@ -2,12 +2,19 @@ Python module for calculating DNA-coated colloid interactions
 and binding details
 ======================================================================
 Written by Patrick Varilly and Stefano Angioletti-Uberti
-Last updated: 11 Apr 2012
+Last updated: 1 Jun 2012
 
 This program accompanies the paper:
 
      Varilly, Angioletti-Uberti, Mognetti and Frenkel, "A general theory
-     of DNA-mediated and other valence-limited interactions", submitted (2012)
+     of DNA-mediated and other valence-limited interactions", arXiv 1205.6921 (2012)
+
+0. Downloading
+--------------
+
+You can download the Python package at:
+
+   http://github.com/downloads/patvarilly/DNACC/dnacc-1.0.1.tar.gz
 
 1. Compiling
 ------------
@@ -125,7 +132,14 @@ MORE DETAILED DESCRIPTIONS TO COME
 For detailed instructions, take a look at the HTML documentation,
 rooted at:
 
-   docs/_build/html/index.html
+   http://github.com/downloads/patvarilly/DNACC/dnacc-1.0.1-docs.tar.gz
+
+These are generated using Sphinx as follows:
+
+   cd docs
+   make clean
+   make html
+   firefox _build/html/index.html
 
 
     

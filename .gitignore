@@ -4,5 +4,6 @@ dnacc.egg-info
 *.pyo
 *.so
 build
+dist
 MANIFEST
 docs/_build
