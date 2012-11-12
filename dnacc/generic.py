@@ -24,7 +24,22 @@ sequences of i and j along with the configuration free energy cost of
 binding.
 """
 
-__all__ = ['Generic', '_do_calculate_py', '_do_add_up_py']
+__all__ = ['Generic', '_do_calculate_py', '_do_add_up_py',
+           '_use_thermodynamic_integration']
+
+# As of Nov 2012, we use an explicit formula for the binding free energies
+# instead of the thermodynamic integration described in our original
+# paper.  For details, see
+#
+#   Angioletti-Uberti, Varilly, Mognetti, Tkachenko and Frenkel,
+#   ``A compact analytical formula for the free-energy of ligand-receptor
+#   mediated interactions'', arXiv:1211.1873 [cond-mat.soft]
+#
+# The explicit formula is exactly equivalent to thermodynamic integration.
+# Nevertheless, if you want to revert to thermodynamic integration anyway
+# (e.g., to measure the resulting speedup), set the flag below to True.
+_use_thermodynamic_integration = False
+
 
 # I've modelled the extension code on Michael Shirts' and John Chodera's
 # "pymbar" Python implementation of their MBAR algorithm
@@ -35,6 +50,7 @@ import scipy.integrate
 from math import log, exp
 from .utils import (csr_matrix_items, csr_matrix_from_dict,
                     default_zero_dict, is_csr_matrix_symmetric)
+import sys
 
 # Try to import C extension module to speed the inner loops here
 try:
@@ -266,9 +282,36 @@ class Generic(object):
         Calculating this attribute is expensive, so its evaluation is
         postponed until the attribute's value is first requested."""
 
-        if not self._thermo_int_ready:
-            self._calc_free_energies()
-        return self._binding_free_energy
+        if _use_thermodynamic_integration:
+            if not self._thermo_int_ready:
+                self._calc_free_energies()
+            return self._binding_free_energy
+        else:
+            if self._weights is None:
+                p_i = self.p_free
+                #sum_ln_p_i = np.sum(np.log(p_i))
+                
+                # Avoid numerical difficulties with the following identity:
+                #   
+                #    sum_i ln(p_i) = ln(prod_i p_i)
+                #
+                # The RHS involves one log, the LHS involves N of them
+                threshold_p_i = exp(log(100 * sys.float_info.min) / p_i.size)
+                sum_ln_p_i = (log(np.prod(p_i[p_i >  threshold_p_i])) +
+                              np.sum(np.log(p_i[p_i <= threshold_p_i])))
+
+                # sum_(i<j) p_ij = 1/2 sum_(i,j) p_ij = 1/2 sum_i (1 - p_i)
+                num_bonds = 0.5 * (p_i.size - np.sum(p_i))
+                self._binding_free_energy = num_bonds + sum_ln_p_i
+
+            else:
+                p_i = self.p_free / self._weights
+                sum_weighted_ln_p_i = np.sum(self._weights * np.log(p_i))
+                sigma_bonds = 0.5 * np.sum(self._weights - self.p_free)
+                self._binding_free_energy = sigma_bonds + sum_weighted_ln_p_i
+                
+            return self._binding_free_energy
+            
 
     def count_bonds(self, i_set, j_set):
         """Counts bonds between tethers in i_set and j_set.
