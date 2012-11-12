@@ -51,11 +51,11 @@ cdef class Generic(object):
     cdef double _self_consistent_max_delta
     cdef int _self_consistent_max_steps
     cdef double _thermo_int_epsrel, _thermo_int_epsabs
+    
     cpdef public np.ndarray p_free
-    cpdef public double avg_num_bonds
     cpdef public object p_bound
-    cdef bool _thermo_int_ready
-    cdef double _binding_free_energy
+    cpdef public double avg_num_bonds
+    cpdef public double binding_free_energy
     
     """A generic DNA-coated colloid (DNACC) system.
 
@@ -64,8 +64,6 @@ cdef class Generic(object):
     cannot be changed later.
 
     Parameters
-    ----------
-    boltz_bind : 2D sparse matrix in CSR format
       an NxN symmetric matrix, with boltz_bind[i,j] = :math:`K_{ij} =
       \\exp(-\\beta \\Delta G_{ij})`, i.e. the ratio of partition functions
       of the tethers i and j when bound vs. unbound.  The easiest way to
@@ -86,12 +84,6 @@ cdef class Generic(object):
       iteration.
     self_consistent_max_steps : integer
       Maximum number of fixed-point iterations.
-    thermo_int_epsabs : float
-      Absolute maximum error, in kT, allowed in thermodynamic integration
-      for computing binding free energy.
-    thermo_int_epsrel : float
-      Absolute relative error allowed in thermodynamic integration
-      for computing binding free energy.
 
     Attributes
     ----------
@@ -101,8 +93,8 @@ cdef class Generic(object):
       p_free[i] = probability that tether i is unbound.
     p_bound
       p_bound[i,j] = probability that tethers i and j are bound.
-
     binding_free_energy
+      free energy of binding
 
     Notes
     -----
@@ -154,9 +146,7 @@ cdef class Generic(object):
 
     def __init__(self, boltz_bind, weights=None,
                  self_consistent_max_delta=1e-7,
-                 self_consistent_max_steps=10001,
-                 thermo_int_epsabs=1e-2,
-                 thermo_int_epsrel=1e-3):
+                 self_consistent_max_steps=10001):
 
         # Description of the system
         M, N = boltz_bind.shape
@@ -169,8 +159,6 @@ cdef class Generic(object):
         # Variables controlling solution accuracy
         self._self_consistent_max_delta = self_consistent_max_delta
         self._self_consistent_max_steps = self_consistent_max_steps
-        self._thermo_int_epsabs = thermo_int_epsabs
-        self._thermo_int_epsrel = thermo_int_epsrel
 
         # Space for results
         self.avg_num_bonds = -1
@@ -180,12 +168,9 @@ cdef class Generic(object):
         # Run self-consistent calculation
         self._calculate()
 
-        # Postpone thermodynamic integration
-        self._thermo_int_ready = False
-
     @cython.boundscheck(False)
     @cython.cdivision(True)
-    cpdef _calculate(self, double boltz_prefactor=1.0):
+    cpdef _calculate(self):
         """Recalculate self-consistent values of p_free and avg_num_bonds.
         """
 
@@ -229,7 +214,7 @@ cdef class Generic(object):
                     x += Kij * p_free[j]
                     
                 w = weights[i] if weights is not None else 1.0
-                p_free[i] = w / (1.0 + boltz_prefactor * x)
+                p_free[i] = w / (1.0 + x)
                 delta = max(delta, abs(oldP - p_free[i]) / (w or 1.0))
             step += 1
 
@@ -252,113 +237,47 @@ cdef class Generic(object):
                         
                 avgN += p_free[i] * cumSum
         
-        self.avg_num_bonds = boltz_prefactor * avgN
+        self.avg_num_bonds = avgN
     
         # Finish off by calculating p_bound and weighted counterparts
-        # (skip this part during thermodynamic integration)
-        if boltz_prefactor == 1.0:
-            # To every non-zero element in _boltz_bind, there's a non-zero
-            # element in p_bound.
-            self.p_bound.clear()
-            for i in xrange(N):
-                if p_free[i] != 0.0:
-                    #for (ii, j), Kij in csr_matrix_items(mtx, row=i):
-                    #    if i <= j:
-                    #        cumSum += Kij * p_free[j]
-                    for jj in xrange(indptr[i], indptr[i+1]):
-                        j = indices[jj]
-                        Kij = data[jj]
-                        self.p_bound[i,j] = p_free[i] * Kij * p_free[j]
-            #p = self.p_free
-            #for (i, j), Kij in csr_matrix_items(mtx):
-            #    self.p_bound[i, j] = p[i] * Kij * p[j]
 
-    def _thermodynamic_integrand(self, DeltaDeltaG):
-        """Return sum_(i<=j) p_ij when
-        betaDeltaG[i,j] -> betaDeltaG[i,j] + DeltaDeltaG"""
+        # To every non-zero element in _boltz_bind, there's a non-zero
+        # element in p_bound.
+        self.p_bound.clear()
+        #for (i, j), Kij in csr_matrix_items(mtx):
+        #    self.p_bound[i, j] = p_free[i] * Kij * p_free[j]
+        for i in xrange(N):
+            if p_free[i] != 0.0:
+                # for (ii, j), Kij in csr_matrix_items(mtx, row=i):
+                #    if i <= j:
+                #        cumSum += Kij * p_free[j]
+                for jj in xrange(indptr[i], indptr[i+1]):
+                    j = indices[jj]
+                    Kij = data[jj]
+                    self.p_bound[i,j] = p_free[i] * Kij * p_free[j]
 
-        self._calculate(boltz_prefactor=exp(-DeltaDeltaG))
-        return -self.avg_num_bonds
-
-    def _calc_free_energies(self):
-
-        assert not self._thermo_int_ready
-
-        # Calc binding free energy using thermodynamic integration over
-        # DeltaDeltaG, where betaDeltaG[i,j] -> betaDeltaG[i,j] +
-        # DeltaDeltaG
-
-        # The upper integration limit is technically infinity, but
-        # using a limit whereby the lowest DeltaG is +10 kT is good enough
-        # If nothing binds, then clearly the free energy of binding is 0.0
-        try:
-            # The maximum Boltzmann factor corresponds to the binding
-            # with lowest (i.e. strongest) DeltaG0
-            max_boltz_bind = max(self._boltz_bind.data)
-            maxL = -(-log(max_boltz_bind))
-            maxL += 10
-
-        except ValueError:
-            maxL = 0.0
-
-        if maxL <= 0.0:
-            # Nothing binds, easy peasy
-            self._binding_free_energy = 0.0
-            self._thermo_int_ready = True
-            return
-
-        # Save old values of p_free and avg_num_bonds
-        old_p_free = np.array(self.p_free, copy=True)
-        old_avg_num_bonds = self.avg_num_bonds
-
-        # Calculate integral with SciPy
-        self._binding_free_energy = scipy.integrate.quad(
-            self._thermodynamic_integrand, 0, maxL,
-            epsabs=self._thermo_int_epsabs,
-            epsrel=self._thermo_int_epsrel)[0]
-
-        # Place system back in a sane state
-        self.p_free = old_p_free
-        self.avg_num_bonds = old_avg_num_bonds
-
-        self._thermo_int_ready = True
-
-    @property
-    def binding_free_energy(self):
-        """Free energy of binding of this system.
-
-        Calculating this attribute is expensive, so its evaluation is
-        postponed until the attribute's value is first requested."""
-
-        if False:
-            if not self._thermo_int_ready:
-                self._calc_free_energies()
-            return self._binding_free_energy
+        # And finally, calculate binding free energy
+        if self._weights is None:
+            p_i = self.p_free
+            #sum_ln_p_i = np.sum(np.log(p_i))
+            
+            # Avoid numerical difficulties with the following identity:
+            #   
+            #    sum_i ln(p_i) = ln(prod_i p_i)
+            #
+            # The RHS involves one log, the LHS involves N of them
+            threshold_p_i = exp(log(100 * sys.float_info.min) / p_i.size)
+            sum_ln_p_i = (log(np.prod(p_i[p_i >  threshold_p_i])) +
+                          np.sum(np.log(p_i[p_i <= threshold_p_i])))
+            
+            # sum_(i<j) p_ij = 1/2 sum_(i,j) p_ij = 1/2 sum_i (1 - p_i)
+            num_bonds = 0.5 * (p_i.size - np.sum(p_i))
+            self.binding_free_energy = num_bonds + sum_ln_p_i
         else:
-            if self._weights is None:
-                p_i = self.p_free
-                #sum_ln_p_i = np.sum(np.log(p_i))
-                
-                # Avoid numerical difficulties with the following identity:
-                #   
-                #    sum_i ln(p_i) = ln(prod_i p_i)
-                #
-                # The RHS involves one log, the LHS involves N of them
-                threshold_p_i = exp(log(100 * sys.float_info.min) / p_i.size)
-                sum_ln_p_i = (log(np.prod(p_i[p_i >  threshold_p_i])) +
-                              np.sum(np.log(p_i[p_i <= threshold_p_i])))
-
-                # sum_(i<j) p_ij = 1/2 sum_(i,j) p_ij = 1/2 sum_i (1 - p_i)
-                num_bonds = 0.5 * (p_i.size - np.sum(p_i))
-                self._binding_free_energy = num_bonds + sum_ln_p_i
-
-            else:
-                p_i = self.p_free / self._weights
-                sum_weighted_ln_p_i = np.sum(self._weights * np.log(p_i))
-                sigma_bonds = 0.5 * np.sum(self._weights - self.p_free)
-                self._binding_free_energy = sigma_bonds + sum_weighted_ln_p_i
-                
-            return self._binding_free_energy
+            p_i = self.p_free / self._weights
+            sum_weighted_ln_p_i = np.sum(self._weights * np.log(p_i))
+            sigma_bonds = 0.5 * np.sum(self._weights - self.p_free)
+            self.binding_free_energy = sigma_bonds + sum_weighted_ln_p_i
             
 
     def count_bonds(self, i_set, j_set):
