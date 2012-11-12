@@ -183,7 +183,7 @@ setup(
         ],
     packages=['dnacc'],
     ext_modules=[
-        Extension("dnacc._generic", ['dnacc/_generic.c'],
+        Extension("dnacc.generic", ['dnacc/generic.c'],
                   include_dirs=numpy_includes)
         ],
     scripts=['simple_dnacc']

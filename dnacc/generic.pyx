@@ -24,8 +24,7 @@ sequences of i and j along with the configuration free energy cost of
 binding.
 """
 
-__all__ = ['Generic', '_do_calculate_py', '_do_add_up_py',
-           '_use_thermodynamic_integration']
+__all__ = ['Generic']
 
 # As of Nov 2012, we use an explicit formula for the binding free energies
 # instead of the thermodynamic integration described in our original
@@ -34,16 +33,6 @@ __all__ = ['Generic', '_do_calculate_py', '_do_add_up_py',
 #   Angioletti-Uberti, Varilly, Mognetti, Tkachenko and Frenkel,
 #   ``A compact analytical formula for the free-energy of ligand-receptor
 #   mediated interactions'', arXiv:1211.1873 [cond-mat.soft]
-#
-# The explicit formula is exactly equivalent to thermodynamic integration.
-# Nevertheless, if you want to revert to thermodynamic integration anyway
-# (e.g., to measure the resulting speedup), set the flag below to True.
-_use_thermodynamic_integration = False
-
-
-# I've modelled the extension code on Michael Shirts' and John Chodera's
-# "pymbar" Python implementation of their MBAR algorithm
-# (see https://simtk.org/home/pymbar)
 
 import numpy as np
 import scipy.integrate
@@ -52,17 +41,22 @@ from .utils import (csr_matrix_items, csr_matrix_from_dict,
                     default_zero_dict, is_csr_matrix_symmetric)
 import sys
 
-# Try to import C extension module to speed the inner loops here
-try:
-    from . import _generic
-    _use_C_extension = True
-except ImportError:
-    _use_C_extension = False
-    print("Could not import extension code to speed up inner loops\n"
-          "-- using much slower pure Python version instead.")
+cimport numpy as np
+cimport cython
+from cpython cimport bool
 
-
-class Generic(object):
+cdef class Generic(object):
+    cdef object _boltz_bind
+    cdef np.ndarray _weights
+    cdef double _self_consistent_max_delta
+    cdef int _self_consistent_max_steps
+    cdef double _thermo_int_epsrel, _thermo_int_epsabs
+    cpdef public np.ndarray p_free
+    cpdef public double avg_num_bonds
+    cpdef public object p_bound
+    cdef bool _thermo_int_ready
+    cdef double _binding_free_energy
+    
     """A generic DNA-coated colloid (DNACC) system.
 
     Everywhere, N is the number of tethers in the DNACC system.  This object
@@ -144,9 +138,18 @@ class Generic(object):
 
     where :math:`p_{ij}(\\lambda)` is the probability that tethers i and j
     are bound after shifting all binding energies :math:`\\Delta G_{ij}` up
-    by an amount :math:`\\lambda`.  The integration is performed to absolute
-    accuracy ``thermo_int_epsabs`` and relative accuracy
-    ``thermo_int_epsrel``.
+    by an amount :math:`\\lambda`.
+
+    Previously, the thermodynamic integral was evaluated explicitly.  Now,
+    we have an exact expression for the result of this integral, namely
+
+    .. math::
+       F_{att} = \\sum_{i < j} p_{ij} + \\sum_i \\ln p_i
+
+    or, for weighted tethers,
+
+    .. math::
+       f_{att} = \\sum_{i < j} s_{ij} + \\sum_i w_i \\ln p_i
     """
 
     def __init__(self, boltz_bind, weights=None,
@@ -180,50 +183,95 @@ class Generic(object):
         # Postpone thermodynamic integration
         self._thermo_int_ready = False
 
-    def _calculate(self, boltz_prefactor=1.0):
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    cpdef _calculate(self, double boltz_prefactor=1.0):
         """Recalculate self-consistent values of p_free and avg_num_bonds.
         """
 
         # Main calculation loop
-        mtx = self._boltz_bind
 
-        if _use_C_extension:
+        # _boltz_bind is a CSR matrix with entries K_ij = exp(-beta*DeltaG_ij)
+        # For each row i, non-empty j's have indices indptr[i] <= jj < indptr[i+1]
+        #   j index is indices[jj] and Kij = data[jj]
+        W = self._boltz_bind
+        cdef np.int32_t [:] indices = W.indices
+        cdef np.int32_t [:] indptr = W.indptr
+        cdef double [:] data = W.data
 
-            delta, step = _generic.do_calculate(
-                self.p_free, mtx.indptr, mtx.indices, mtx.data,
-                boltz_prefactor,
-                self._self_consistent_max_delta,
-                self._self_consistent_max_steps,
-                self._weights)
+        cdef double max_delta = self._self_consistent_max_delta
+        cdef int max_steps = self._self_consistent_max_steps
 
-            self.avg_num_bonds = (
-                boltz_prefactor *
-                _generic.do_add_up(self.p_free, mtx.indptr,
-                                   mtx.indices, mtx.data))
+        cdef double oldP, x, Kij, w, delta
+        cdef unsigned int step, i, ii, jj, j, N
 
-        else:
+        cdef double [:] p_free = self.p_free
+        cdef double [:] weights = self._weights
+        
+        N = p_free.shape[0]
 
-            # See replacement Python code below
-            delta, step = _do_calculate_py(
-                self.p_free, mtx,
-                boltz_prefactor,
-                self._self_consistent_max_delta,
-                self._self_consistent_max_steps,
-                self._weights)
+        # First, self-consistent iteration to determine {p_i}
+        p_free[:] = 1.0
+        delta = 1.0
+        step = 0
+        while delta > max_delta and step < max_steps:
+            delta = 0.0
+            for i in xrange(N):
+                oldP = p_free[i]
+                x = 0.0
+                
+                #for (ii, j), Kij in csr_matrix_items(mtx, row=i):
+                #    x += Kij * p_free[j]
+                
+                for jj in xrange(indptr[i], indptr[i+1]):
+                    j = indices[jj]
+                    Kij = data[jj]
+                    x += Kij * p_free[j]
+                    
+                w = weights[i] if weights is not None else 1.0
+                p_free[i] = w / (1.0 + boltz_prefactor * x)
+                delta = max(delta, abs(oldP - p_free[i]) / (w or 1.0))
+            step += 1
 
-            self.avg_num_bonds = (
-                boltz_prefactor *
-                _do_add_up_py(self.p_free, mtx))
-
+        # Now count average number of bonds formed
+        cdef double avgN, cumSum
+        avgN = 0.0
+        for i in xrange(N):
+            if p_free[i] != 0.0:
+                cumSum = 0.0
+                
+                #for (ii, j), Kij in csr_matrix_items(mtx, row=i):
+                #    if i <= j:
+                #        cumSum += Kij * p_free[j]
+                
+                for jj in xrange(indptr[i], indptr[i+1]):
+                    j = indices[jj]
+                    if i <= j:
+                        Kij = data[jj]
+                        cumSum += Kij * p_free[j]
+                        
+                avgN += p_free[i] * cumSum
+        
+        self.avg_num_bonds = boltz_prefactor * avgN
+    
         # Finish off by calculating p_bound and weighted counterparts
         # (skip this part during thermodynamic integration)
         if boltz_prefactor == 1.0:
             # To every non-zero element in _boltz_bind, there's a non-zero
             # element in p_bound.
             self.p_bound.clear()
-            p = self.p_free
-            for (i, j), Kij in csr_matrix_items(mtx):
-                self.p_bound[i, j] = p[i] * Kij * p[j]
+            for i in xrange(N):
+                if p_free[i] != 0.0:
+                    #for (ii, j), Kij in csr_matrix_items(mtx, row=i):
+                    #    if i <= j:
+                    #        cumSum += Kij * p_free[j]
+                    for jj in xrange(indptr[i], indptr[i+1]):
+                        j = indices[jj]
+                        Kij = data[jj]
+                        self.p_bound[i,j] = p_free[i] * Kij * p_free[j]
+            #p = self.p_free
+            #for (i, j), Kij in csr_matrix_items(mtx):
+            #    self.p_bound[i, j] = p[i] * Kij * p[j]
 
     def _thermodynamic_integrand(self, DeltaDeltaG):
         """Return sum_(i<=j) p_ij when
@@ -282,7 +330,7 @@ class Generic(object):
         Calculating this attribute is expensive, so its evaluation is
         postponed until the attribute's value is first requested."""
 
-        if _use_thermodynamic_integration:
+        if False:
             if not self._thermo_int_ready:
                 self._calc_free_energies()
             return self._binding_free_energy
@@ -348,50 +396,9 @@ class Generic(object):
         for i in i_set:
             if p[i] != 0.0:
                 partial_count = 0.0
-                for (gobble, j), Wij in csr_matrix_items(mtx, row=i):
+                for (gobble, j), Kij in csr_matrix_items(mtx, row=i):
                     if j in j_set:
-                        partial_count += Wij * p[j]
+                        partial_count += Kij * p[j]
                 count += p[i] * partial_count
 
         return count
-
-
-# Replacement Python methods, in case C extension module cannot be loaded
-def _do_calculate_py(p_free, mtx, prefactor,
-                    maxDelta, maxSteps, weights):
-
-    if weights is None:
-        if np.any(p_free > 1.0) or any(p_free < 0.0):
-            p_free[:] = 1.0
-    else:
-        if np.any(p_free > weights) or any(p_free < 0.0):
-            p_free[:] = weights
-
-    delta = 1.0
-    step = 0
-    while delta > maxDelta and step < maxSteps:
-        delta = 0.0
-        for i in xrange(len(p_free)):
-            oldP = p_free[i]
-            #x = mtx[i, :] * p_free
-            x = 0.0
-            for (ii, j), Wij in csr_matrix_items(mtx, row=i):
-                x += Wij * p_free[j]
-            w = weights[i] if weights is not None else 1.0
-            p_free[i] = w / (1.0 + prefactor * x)
-            delta = max(delta, abs(oldP - p_free[i]) / (w or 1.0))
-        step += 1
-
-    return delta, step
-
-
-def _do_add_up_py(p_free, mtx):
-    avgN = 0.0
-    for i in xrange(len(p_free)):
-        if p_free[i] != 0.0:
-            cumSum = 0.0
-            for (ii, j), Wij in csr_matrix_items(mtx, row=i):
-                if i <= j:
-                    cumSum += Wij * p_free[j]
-            avgN += p_free[i] * cumSum
-    return avgN
