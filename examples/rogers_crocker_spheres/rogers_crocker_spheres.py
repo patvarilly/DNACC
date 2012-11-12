@@ -477,15 +477,14 @@ def do_explicit_spheres(prefix, dg0_arr):
                     binding_free_energy = spheres.binding_free_energy
                     rep_free_energy = (
                         -np.sum(np.log(Qi_over_Qinf)) -
-                         (Nmax - N) * log(Qi_over_Qinf_nonint)
-                         + Nmax * log(Qi_over_Qinf_nonint))
+                        (Nmax - N) * log(Qi_over_Qinf_nonint) +
+                        Nmax * log(Qi_over_Qinf_nonint))
 
                     results[realisation][h][dg0] = dict(
                         avg_num_bonds=spheres.avg_num_bonds,
                         binding_free_energy=binding_free_energy,
                         rep_free_energy=rep_free_energy,
-                        free_energy=binding_free_energy + rep_free_energy
-                        )
+                        free_energy=binding_free_energy + rep_free_energy)
 
             # Set zero of free energy at last h
             #max_h = max(results[realisation].keys())

@@ -83,7 +83,7 @@ def run(L, sigma, beta_DeltaG0, patch_radii, skip=False, plates=None):
         f.write("# d (nm)\t" "h (nm)\t" "F (kT)\n")
         f.write("# Total number of tethers: %d\n" % len(plates.tethers))
         for d in np.linspace(-2 * max_patch_radii - 2 * L,
-                              2 * max_patch_radii + 2 * L, 40):
+                             +2 * max_patch_radii + 2 * L, 40):
             for h in np.linspace(0.05 * L, 2 * L, 20):
                 f.write("%g\t%g\t%g\n" %
                         (d / nm, h / nm,

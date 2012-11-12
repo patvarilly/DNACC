@@ -179,12 +179,9 @@ setup(
     platforms=["Linux", "Unix", "Mac OS-X", "Windows", "Solaris"],
     install_requires=[
         'numpy>=1.3.0',
-        'scipy>=0.7.0',
-        ],
+        'scipy>=0.7.0'],
     packages=['dnacc'],
     ext_modules=[
         Extension("dnacc.generic", ['dnacc/generic.c'],
-                  include_dirs=numpy_includes)
-        ],
-    scripts=['simple_dnacc']
-    )
+                  include_dirs=numpy_includes)],
+    scripts=['simple_dnacc'])

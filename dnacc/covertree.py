@@ -417,7 +417,8 @@ class CoverTree(object):
             if isinstance(node, CoverTree._LeafNode):
                 return node.idx
             else:
-                return list(itertools.chain.from_iterable(
+                return list(
+                    itertools.chain.from_iterable(
                         enum_leaves(child)
                         for child in node.children))
 
@@ -612,7 +613,8 @@ class CoverTree(object):
                 return list(i for i in node.idx
                             if self.distance(x, self.data[i]) <= r)
             else:
-                return list(itertools.chain.from_iterable(
+                return list(
+                    itertools.chain.from_iterable(
                         traverse_checking(child)
                         for child in node.children))
 
@@ -620,7 +622,8 @@ class CoverTree(object):
             if isinstance(node, CoverTree._LeafNode):
                 return node.idx
             else:
-                return list(itertools.chain.from_iterable(
+                return list(
+                    itertools.chain.from_iterable(
                         traverse_no_checking(child)
                         for child in node.children))
 
@@ -658,7 +661,7 @@ class CoverTree(object):
         """
         x = np.asarray(x)
         if self.pt_shape and x.shape[-len(self.pt_shape):] != self.pt_shape:
-            raise ValueError("Searching for a point of shape %s in a " \
+            raise ValueError("Searching for a point of shape %s in a "
                              "CoverTree with points of shape %s" %
                              (x.shape[-len(self.pt_shape):],
                               self.pt_shape))

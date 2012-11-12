@@ -84,11 +84,12 @@ class PlatesMeanField(object):
 
         # p_free and p_bound here means something slightly different that
         # in a Generic, see p_bound property docstring
-        self._p_free = SyntheticList(fgetitem=lambda i: (
-                self._dnacc.p_free[i] / self._dnacc.weights[i]))
-        self._p_bound = SyntheticList(fgetitem=lambda pair: (
-                self._dnacc.p_bound[pair] /
-                self._dnacc.weights[pair[0]]))
+        self._p_free = SyntheticList(
+            fgetitem=lambda i: (self._dnacc.p_free[i] /
+                                self._dnacc.weights[i]))
+        self._p_bound = SyntheticList(
+            fgetitem=lambda pair: (self._dnacc.p_bound[pair] /
+                                   self._dnacc.weights[pair[0]]))
 
     def set_tether_type_prototype(self, **kwargs):
         """Set properties common to all tether types added after this call.

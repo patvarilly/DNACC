@@ -121,8 +121,8 @@ for T in (30.5, 32.0, 33.0, 35.0, 36.0):
                      betaF / (1 / nm ** 2)))
 
     # Now compute a similar plate potential using the Poisson approximation
-    badBetaFPlate = [-plates.at(h).sigma_bound[ALPHA, ALPHA_P] +
-                      plates.rep_free_energy_density for h in hArr]
+    badBetaFPlate = [plates.rep_free_energy_density -
+                     plates.at(h).sigma_bound[ALPHA, ALPHA_P] for h in hArr]
 
     with open('bad-plates-A_B-T%.1f-G%.1f.txt' %
               (T, beta_DeltaG0), 'w') as f:

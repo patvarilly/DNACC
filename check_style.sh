@@ -16,4 +16,4 @@ pep8 -r --select=W391 -q --filename=*.py . | xargs sed -i -e :a -e '/^\n*$/{$d;N
 # Squashes consecutive blanks lines into one
 pep8 -r --select=E303 -q --filename=*.py . | xargs sed -i '/./,/^$/!d'
 
-find dnacc examples setup.py simple_dnacc -name '*.py' | xargs pep8 -r
+find dnacc examples setup.py simple_dnacc -name '*.py' | xargs pep8 --ignore=E125 -r

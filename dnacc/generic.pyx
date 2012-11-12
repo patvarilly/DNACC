@@ -37,7 +37,7 @@ __all__ = ['Generic']
 import numpy as np
 import scipy.integrate
 from math import log, exp
-from .utils import (csr_matrix_items, csr_matrix_from_dict,
+from .utils import (csr_matrix_items, SyntheticList,
                     default_zero_dict, is_csr_matrix_symmetric)
 import sys
 
@@ -163,7 +163,8 @@ cdef class Generic(object):
         # Space for results
         self.avg_num_bonds = -1
         self.p_free = np.zeros(N)
-        self.p_bound = default_zero_dict()
+        self.p_bound = SyntheticList(fgetitem=lambda pair: (
+                self.p_free[pair[0]] * self._boltz_bind[pair] * self.p_free[pair[1]]))
 
         # Run self-consistent calculation
         self._calculate()
@@ -219,65 +220,29 @@ cdef class Generic(object):
             step += 1
 
         # Now count average number of bonds formed
-        cdef double avgN, cumSum
-        avgN = 0.0
-        for i in xrange(N):
-            if p_free[i] != 0.0:
-                cumSum = 0.0
-                
-                #for (ii, j), Kij in csr_matrix_items(mtx, row=i):
-                #    if i <= j:
-                #        cumSum += Kij * p_free[j]
-                
-                for jj in xrange(indptr[i], indptr[i+1]):
-                    j = indices[jj]
-                    if i <= j:
-                        Kij = data[jj]
-                        cumSum += Kij * p_free[j]
-                        
-                avgN += p_free[i] * cumSum
-        
-        self.avg_num_bonds = avgN
-    
-        # Finish off by calculating p_bound and weighted counterparts
-
-        # To every non-zero element in _boltz_bind, there's a non-zero
-        # element in p_bound.
-        self.p_bound.clear()
-        #for (i, j), Kij in csr_matrix_items(mtx):
-        #    self.p_bound[i, j] = p_free[i] * Kij * p_free[j]
-        for i in xrange(N):
-            if p_free[i] != 0.0:
-                # for (ii, j), Kij in csr_matrix_items(mtx, row=i):
-                #    if i <= j:
-                #        cumSum += Kij * p_free[j]
-                for jj in xrange(indptr[i], indptr[i+1]):
-                    j = indices[jj]
-                    Kij = data[jj]
-                    self.p_bound[i,j] = p_free[i] * Kij * p_free[j]
-
-        # And finally, calculate binding free energy
         if self._weights is None:
-            p_i = self.p_free
-            #sum_ln_p_i = np.sum(np.log(p_i))
-            
+            # sum_(i<j) p_ij = 1/2 sum_(i,j) p_ij = 1/2 sum_i (1 - p_i)
+            self.avg_num_bonds = 0.5 * (N - np.sum(self.p_free))
+        else:
+            # sum_(i<j) s_ij = 1/2 sum_(i,j) s_ij = 1/2 sum_i (w_i - s_i)
+            self.avg_num_bonds = 0.5 * np.sum(self._weights - self.p_free)
+    
+        # Finally, calculate binding free energy
+        if self._weights is None:
             # Avoid numerical difficulties with the following identity:
             #   
             #    sum_i ln(p_i) = ln(prod_i p_i)
             #
             # The RHS involves one log, the LHS involves N of them
-            threshold_p_i = exp(log(100 * sys.float_info.min) / p_i.size)
-            sum_ln_p_i = (log(np.prod(p_i[p_i >  threshold_p_i])) +
-                          np.sum(np.log(p_i[p_i <= threshold_p_i])))
+            #sum_ln_p_i = np.sum(np.log(self.p_i))
+            threshold_p_i = exp(log(100 * sys.float_info.min) / N)
+            sum_ln_p_i = (log(np.prod(self.p_free[self.p_free >  threshold_p_i])) +
+                          np.sum(np.log(self.p_free[self.p_free <= threshold_p_i])))
             
-            # sum_(i<j) p_ij = 1/2 sum_(i,j) p_ij = 1/2 sum_i (1 - p_i)
-            num_bonds = 0.5 * (p_i.size - np.sum(p_i))
-            self.binding_free_energy = num_bonds + sum_ln_p_i
+            self.binding_free_energy = self.avg_num_bonds + sum_ln_p_i
         else:
-            p_i = self.p_free / self._weights
-            sum_weighted_ln_p_i = np.sum(self._weights * np.log(p_i))
-            sigma_bonds = 0.5 * np.sum(self._weights - self.p_free)
-            self.binding_free_energy = sigma_bonds + sum_weighted_ln_p_i
+            sum_weighted_ln_p_i = np.sum(self._weights * np.log(self.p_free / self._weights))
+            self.binding_free_energy = self.avg_num_bonds + sum_weighted_ln_p_i
             
 
     def count_bonds(self, i_set, j_set):
@@ -316,7 +281,8 @@ cdef class Generic(object):
             if p[i] != 0.0:
                 partial_count = 0.0
                 for (gobble, j), Kij in csr_matrix_items(mtx, row=i):
-                    if j in j_set:
+                    # 12 Nov 2012: Fixed double-counting bug here
+                    if j in j_set and ((j not in i_set) or j > i):
                         partial_count += Kij * p[j]
                 count += p[i] * partial_count
 

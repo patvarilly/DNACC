@@ -87,10 +87,10 @@ class TestPlatesMeanField(unittest.TestCase):
         self.assertEquals(plates.find_tether_types(plate='upper'),
                           set((i3, i4)))
         self.assertEquals(plates.find_tether_types(plate='upper',
-                                              sticky_end='alpha'),
+                                                   sticky_end='alpha'),
                           set((i3,)))
         self.assertEquals(plates.find_tether_types(plate='lower',
-                                              sticky_end='alpha'),
+                                                   sticky_end='alpha'),
                           set((i1, i2)))
         self.assertEquals(plates.find_tether_types(L=10 * nm),
                           set((i2,)))
