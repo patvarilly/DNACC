@@ -46,17 +46,6 @@ cimport cython
 from cpython cimport bool
 
 cdef class Generic(object):
-    cdef object _boltz_bind
-    cdef np.ndarray _weights
-    cdef double _self_consistent_max_delta
-    cdef int _self_consistent_max_steps
-    cdef double _thermo_int_epsrel, _thermo_int_epsabs
-    
-    cpdef public np.ndarray p_free
-    cpdef public object p_bound
-    cpdef public double avg_num_bonds
-    cpdef public double binding_free_energy
-    
     """A generic DNA-coated colloid (DNACC) system.
 
     Everywhere, N is the number of tethers in the DNACC system.  This object
@@ -144,6 +133,21 @@ cdef class Generic(object):
        f_{att} = \\sum_{i < j} s_{ij} + \\sum_i w_i \\ln p_i
     """
 
+    cpdef README(self):
+        """Read source for docstring (Cython doesn't export docstrings well)"""
+        pass
+
+    cdef object _boltz_bind
+    cdef np.ndarray _weights
+    cdef double _self_consistent_max_delta
+    cdef int _self_consistent_max_steps
+    cdef double _thermo_int_epsrel, _thermo_int_epsabs
+    
+    cpdef public np.ndarray p_free
+    cpdef public object p_bound
+    cpdef public double avg_num_bonds
+    cpdef public double binding_free_energy
+    
     def __init__(self, boltz_bind, weights=None,
                  self_consistent_max_delta=1e-7,
                  self_consistent_max_steps=10001):
@@ -171,7 +175,7 @@ cdef class Generic(object):
 
     @cython.boundscheck(False)
     @cython.cdivision(True)
-    cpdef _calculate(self):
+    cdef _calculate(self):
         """Recalculate self-consistent values of p_free and avg_num_bonds.
         """
 
@@ -245,7 +249,7 @@ cdef class Generic(object):
             self.binding_free_energy = self.avg_num_bonds + sum_weighted_ln_p_i
             
 
-    def count_bonds(self, i_set, j_set):
+    cpdef count_bonds(self, i_set, j_set):
         """Counts bonds between tethers in i_set and j_set.
 
         Parameters
