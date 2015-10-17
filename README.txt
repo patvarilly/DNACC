@@ -14,7 +14,7 @@ This program accompanies the papers:
      2) S. Angioletti-Uberti, P. Varilly, B.M. Mognetti, A.V. Tkachenko, and D. Frenkel. 
      “Communication: A simple analytical formula for the free energy of ligand-receptor-mediated interactions”. 
      The Journal of Chemical Physics, 138:021102–021106, 2013.
-     arXiv:1211.1873 (2013)
+     arXiv:1211.1873 (2013).
 
 0. Downloading
 --------------
