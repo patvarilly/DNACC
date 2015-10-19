@@ -2,12 +2,19 @@ Python module for calculating DNA-coated colloid interactions
 and binding details
 ======================================================================
 Written by Patrick Varilly and Stefano Angioletti-Uberti
-Last updated: 1 Jun 2012
+Last updated: 17 Oct 2015
 
-This program accompanies the paper:
+This program accompanies the papers:
 
-     Varilly, Angioletti-Uberti, Mognetti and Frenkel, "A general theory
-     of DNA-mediated and other valence-limited interactions", arXiv 1205.6921 (2012)
+     1) P. Varilly, S. Angioletti-Uberti, B.M. Mognetti, and D. Frenkel. “A general theory 
+     of DNA-mediated and other valence-limited colloidal interactions”. 
+     The Journal of Chemical Physics, 137:094108–094122, 2012.
+     arXiv:1205.6921 (2012)
+
+     2) S. Angioletti-Uberti, P. Varilly, B.M. Mognetti, A.V. Tkachenko, and D. Frenkel. 
+     “Communication: A simple analytical formula for the free energy of ligand-receptor-mediated interactions”. 
+     The Journal of Chemical Physics, 138:021102–021106, 2013.
+     arXiv:1211.1873 (2013).
 
 0. Downloading
 --------------
