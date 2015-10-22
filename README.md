@@ -14,7 +14,7 @@ This program accompanies the papers:
 > The Journal of Chemical Physics, 138:021102–021106, 2013.
 > arXiv:1211.1873 (2013).
 
-## 0. Downloading
+We kindly ask to cite those papers in any publication where this code is used.
 
 You can download the Python package [here](http://github.com/downloads/patvarilly/DNACC/dnacc-1.0.1.tar.gz).
 
