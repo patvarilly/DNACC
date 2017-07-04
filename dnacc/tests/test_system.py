@@ -63,8 +63,8 @@ class TestSystem(unittest.TestCase):
                        [0.1334154, 0.4066406, 0.1478448, 0, 0, 0],
                        [0.1407036, 0.1536849, 0.4446428, 0, 0, 0]]
 
-        for i in xrange(0, plates.num_tethers):
-            for j in xrange(0, plates.num_tethers):
+        for i in range(0, plates.num_tethers):
+            for j in range(0, plates.num_tethers):
                 self.assertAlmostEqual(plates.p_bound[i, j],
                                        exp_p_bound[i][j], 6)
 
@@ -84,24 +84,24 @@ class TestSystem(unittest.TestCase):
 
         self.assertRaises(ValueError, plates.find_tethers)
 
-        self.assertEquals(plates.find_tethers(sticky_end='gamma'),
+        self.assertEqual(plates.find_tethers(sticky_end='gamma'),
                           set())
-        self.assertEquals(plates.find_tethers(sticky_end='alpha'),
+        self.assertEqual(plates.find_tethers(sticky_end='alpha'),
                           set((i1, i2, i3)))
-        self.assertEquals(plates.find_tethers(sticky_end='beta'),
+        self.assertEqual(plates.find_tethers(sticky_end='beta'),
                           set((i4,)))
-        self.assertEquals(plates.find_tethers(plate='lower'),
+        self.assertEqual(plates.find_tethers(plate='lower'),
                           set((i1, i2)))
-        self.assertEquals(plates.find_tethers(plate='upper'),
+        self.assertEqual(plates.find_tethers(plate='upper'),
                           set((i3, i4)))
-        self.assertEquals(plates.find_tethers(plate='upper',
+        self.assertEqual(plates.find_tethers(plate='upper',
                                               sticky_end='alpha'),
                           set((i3,)))
-        self.assertEquals(plates.find_tethers(plate='lower',
+        self.assertEqual(plates.find_tethers(plate='lower',
                                               sticky_end='alpha'),
                           set((i1, i2)))
-        self.assertEquals(plates.find_tethers(L=10 * nm),
+        self.assertEqual(plates.find_tethers(L=10 * nm),
                           set((i2,)))
-        self.assertEquals(plates.find_tethers(L=10 * nm,
+        self.assertEqual(plates.find_tethers(L=10 * nm,
                                               sticky_end='beta'),
                           set())

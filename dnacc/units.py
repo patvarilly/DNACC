@@ -193,7 +193,7 @@ def _add_prefixes(name, realname=None):
     """Add standard SI prefixes to a base unit."""
     globs = globals()
     val = globs[realname or name]
-    for prefix, factor in _SI_prefixes.items():
+    for prefix, factor in list(_SI_prefixes.items()):
         globs[prefix + name] = factor * val
 
 _add_prefixes('m')

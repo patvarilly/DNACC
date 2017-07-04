@@ -53,8 +53,8 @@ class TestPlatesMeanField(unittest.TestCase):
         exp_sigma_bound = [[0, 0.00179873],
                            [0.00179873, 0]]
 
-        for i in xrange(0, len(plates.tether_types)):
-            for j in xrange(0, len(plates.tether_types)):
+        for i in range(0, len(plates.tether_types)):
+            for j in range(0, len(plates.tether_types)):
                 self.assertAlmostEqual(plates.sigma_bound[i, j],
                                        exp_sigma_bound[i][j])
 
@@ -76,24 +76,24 @@ class TestPlatesMeanField(unittest.TestCase):
 
         self.assertRaises(ValueError, plates.find_tether_types)
 
-        self.assertEquals(plates.find_tether_types(sticky_end='gamma'),
+        self.assertEqual(plates.find_tether_types(sticky_end='gamma'),
                           set())
-        self.assertEquals(plates.find_tether_types(sticky_end='alpha'),
+        self.assertEqual(plates.find_tether_types(sticky_end='alpha'),
                           set((i1, i2, i3)))
-        self.assertEquals(plates.find_tether_types(sticky_end='beta'),
+        self.assertEqual(plates.find_tether_types(sticky_end='beta'),
                           set((i4,)))
-        self.assertEquals(plates.find_tether_types(plate='lower'),
+        self.assertEqual(plates.find_tether_types(plate='lower'),
                           set((i1, i2)))
-        self.assertEquals(plates.find_tether_types(plate='upper'),
+        self.assertEqual(plates.find_tether_types(plate='upper'),
                           set((i3, i4)))
-        self.assertEquals(plates.find_tether_types(plate='upper',
+        self.assertEqual(plates.find_tether_types(plate='upper',
                                                    sticky_end='alpha'),
                           set((i3,)))
-        self.assertEquals(plates.find_tether_types(plate='lower',
+        self.assertEqual(plates.find_tether_types(plate='lower',
                                                    sticky_end='alpha'),
                           set((i1, i2)))
-        self.assertEquals(plates.find_tether_types(L=10 * nm),
+        self.assertEqual(plates.find_tether_types(L=10 * nm),
                           set((i2,)))
-        self.assertEquals(plates.find_tether_types(L=10 * nm,
+        self.assertEqual(plates.find_tether_types(L=10 * nm,
                                                    sticky_end='beta'),
                           set())

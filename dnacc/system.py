@@ -180,7 +180,7 @@ class System(object):
         for i, t in enumerate(self.tethers):
 
             if (all(prop in t for prop in kwargs) and
-                all(t[prop] == val for prop, val in kwargs.iteritems())):
+                all(t[prop] == val for prop, val in kwargs.items())):
 
                 result.add(i)
 
@@ -230,7 +230,7 @@ class System(object):
 
         # Pre-exponentiate beta_DeltaG0
         boltz_soln = SymDict()
-        for (i, j), beta_DeltaG0 in self.beta_DeltaG0.iteritems():
+        for (i, j), beta_DeltaG0 in self.beta_DeltaG0.items():
             if i <= j:
                 boltz_soln[i, j] = exp(-beta_DeltaG0)
         ends = [t['sticky_end'] for t in self.tethers]
@@ -245,7 +245,7 @@ class System(object):
                 interaction_list = stats.calc_interaction_lists(self)
             else:
                 N = len(self.tethers)
-                interaction_list = [xrange(i + 1, N) for i in xrange(N)]
+                interaction_list = [range(i + 1, N) for i in range(N)]
 
             # Set up binding
             for i, nns_i in enumerate(interaction_list):
@@ -272,7 +272,7 @@ class System(object):
 
             # Simply run through old _boltz_binding_cnf factors and
             # multiply by new exp(-beta_DeltaG0) factors
-            for (i, j), boltzCnf in self._boltz_binding_cnf.iteritems():
+            for (i, j), boltzCnf in self._boltz_binding_cnf.items():
                 boltz_bind[i, j] = boltz_soln[ends[i], ends[j]] * boltzCnf
 
         # Calculate p_free, p_bound and avg_num_bound

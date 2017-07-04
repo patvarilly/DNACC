@@ -296,7 +296,7 @@ class TestRodsGraftedOnPlates(unittest.TestCase):
             def distance(ri, rj):
                 return sqrt((ri[0] - rj[0]) ** 2 + (ri[1] - rj[1]) ** 2)
 
-        all_tethers = set(xrange(N))
+        all_tethers = set(range(N))
         #for i, nns_i in enumerate(partners):
         #    for j in nns_i:
         #        assert (distance(system.tethers[i]['pos'],

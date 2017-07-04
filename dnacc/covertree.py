@@ -24,7 +24,7 @@
 # I have rewritten the code to mimic the API of Anne M. Archibald's
 # scipy.spatial.kdtree
 
-from __future__ import division
+
 
 import numpy as np
 from collections import defaultdict
@@ -224,7 +224,7 @@ class CoverTree(object):
             far_p_ds = []
 
             new_pts_len = 0
-            for i in xrange(len(pts_p_ds)):
+            for i in range(len(pts_p_ds)):
                 idx, dp = pts_p_ds[i]
                 if dp <= dmax:
                     near_p_ds.append((idx, dp))
@@ -271,7 +271,7 @@ class CoverTree(object):
             far_q_ds = []
 
             new_pts_len = 0
-            for i in xrange(len(pts_p_ds)):
+            for i in range(len(pts_p_ds)):
                 idx, dp = pts_p_ds[i]
                 dq = self.distance(self.data[q_idx], self.data[idx])
                 if dq <= dmax:
@@ -422,16 +422,16 @@ class CoverTree(object):
                         enum_leaves(child)
                         for child in node.children))
 
-        assert sorted(enum_leaves(self.root)) == range(self.data.shape[0])
+        assert sorted(enum_leaves(self.root)) == list(range(self.data.shape[0]))
 
         return True
 
     def _print(self):
         def print_node(node, indent):
             if isinstance(node, CoverTree._LeafNode):
-                print "-" * indent, node
+                print("-" * indent, node)
             else:
-                print "-" * indent, node
+                print("-" * indent, node)
                 for child in node.children:
                     print_node(child, indent + 1)
 

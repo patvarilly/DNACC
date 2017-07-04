@@ -28,7 +28,7 @@
 
 import sys
 if len(sys.argv) != 2:
-    print "Usage: simple_dnacc INPUTFILE"
+    print("Usage: simple_dnacc INPUTFILE")
     raise SystemExit()
 
 import dnacc
@@ -77,72 +77,72 @@ input_file = sys.argv[1]
 include(input_file)
 
 # Print out basic info
-print "geometry set to:", geometry
-print "calculation set to:", calculation
-print "construct set to:", construct
+print("geometry set to:", geometry)
+print("calculation set to:", calculation)
+print("construct set to:", construct)
 
 # Check that global control variables have sensible values
 for name, valid_inputs in (
-    dict(
+    iter(dict(
         geometry=["plates", "spheres"],
         calculation=["potential", "number of bonds",
                      "potential vs temperature"],
         construct=["rods", "ssdna"],
-        ).iteritems()):
+        ).items())):
 
     if globals()[name] not in valid_inputs:
         raise ValueError("Unrecognised %s" % name)
 
 if geometry == "spheres":
-    for S, R_S in R.iteritems():
-        print "Radius of sphere %s: %g nm" % (str(S), R_S / nm)
+    for S, R_S in R.items():
+        print("Radius of sphere %s: %g nm" % (str(S), R_S / nm))
 
 # Extract set of strand types and names of plates/spheres/patches
 strand_types = set()
-for t_i, t_j in dg.iterkeys():
+for t_i, t_j in dg.keys():
     strand_types.add(t_i)
     strand_types.add(t_j)
-for sigma_plate in sigma.itervalues():
+for sigma_plate in sigma.values():
     if isinstance(sigma_plate, dict):
-        for t in sigma_plate.iterkeys():
+        for t in sigma_plate.keys():
             strand_types.add(t)
-for t in L.iterkeys():
+for t in L.keys():
     strand_types.add(t)
-for num_type_plate in num_type.itervalues():
+for num_type_plate in num_type.values():
     if isinstance(num_type_plate, dict):
-        for t in num_type_plate.iterkeys():
+        for t in num_type_plate.keys():
             strand_types.add(t)
 
 if predefined_patches:
-    for patch_t in patch_types.iterkeys():
-        for t in patch_types[patch_t]['sticky_end'].iterkeys():
+    for patch_t in patch_types.keys():
+        for t in patch_types[patch_t]['sticky_end'].keys():
             strand_types.add(t)
-    for particle in patches_on.iterkeys():
-        for patch in patches_on[particle].iterkeys():
-            for t_type in patch_types[patch]['sticky_end'].iterkeys():
+    for particle in patches_on.keys():
+        for patch in patches_on[particle].keys():
+            for t_type in patch_types[patch]['sticky_end'].keys():
                 num_type[particle][t_type] = (
                     patch_types[patch]['sticky_end'][t_type]['number'])
 
 
 particle_names = set()
-for particle in sigma.iterkeys():
+for particle in sigma.keys():
     particle_names.add(particle)
-for particle in num_type.iterkeys():
+for particle in num_type.keys():
     particle_names.add(particle)
-for particle in patches_on.iterkeys():
+for particle in patches_on.keys():
     particle_names.add(particle)
 
 patch_names = set()
-for patch in patch_types.iterkeys():
+for patch in patch_types.keys():
     patch_names.add(patch)
 
 # Use the previous information to fully build the patches
 
-print "Strand types: " + ', '.join(str(x) for x in strand_types)
+print("Strand types: " + ', '.join(str(x) for x in strand_types))
 if geometry == 'plates':
-    print "Plate names: " + ', '.join(str(x) for x in particle_names)
+    print("Plate names: " + ', '.join(str(x) for x in particle_names))
 elif geometry == 'spheres':
-    print "Sphere names: " + ', '.join(str(x) for x in particle_names)
+    print("Sphere names: " + ', '.join(str(x) for x in particle_names))
 else:
     raise NotImplementedError()
 
@@ -170,19 +170,19 @@ else:
     else:
         raise NotImplementedError()
 
-Lmin = min(L.itervalues())
-Lmax = max(L.itervalues())
-print("Strand lengths range from %g nm to %g nm" %
-      ((Lmin / nm), (Lmax / nm)))
+Lmin = min(L.values())
+Lmax = max(L.values())
+print(("Strand lengths range from %g nm to %g nm" %
+      ((Lmin / nm), (Lmax / nm))))
 
 if geometry == 'spheres':
-    Rmin = min(R.itervalues())
-    Rmax = max(R.itervalues())
-    print("Sphere radii range from %g nm to %g nm" %
-          ((Rmin / nm), (Rmax / nm)))
+    Rmin = min(R.values())
+    Rmax = max(R.values())
+    print(("Sphere radii range from %g nm to %g nm" %
+          ((Rmin / nm), (Rmax / nm))))
 
-dgmin = min(dg.itervalues())
-print("Minimum bond strength: %g kT" % dgmin)
+dgmin = min(dg.values())
+print(("Minimum bond strength: %g kT" % dgmin))
 
 if explicit:
 
@@ -190,11 +190,11 @@ if explicit:
     if (generate_explicit_tethers and os.path.exists(explicit_tethers_file)
         and not force_generate_explicit_tethers):
         
-        print("Explicit tethers file '%s' will be used instead of \n"
+        print(("Explicit tethers file '%s' will be used instead of \n"
               "    generating a new set of tethers.  Set "
               "force_generate_explicit_tethers\n"
               "    to True to override this behaviour." %
-              explicit_tethers_file)
+              explicit_tethers_file))
 
     if (force_generate_explicit_tethers or
         (generate_explicit_tethers and
@@ -212,8 +212,8 @@ if explicit:
                     + particle_label + '\n')
 
             if not predefined_patches:
-                for p, num_type_p in num_type.iteritems():
-                    for t_type, num_type_t in num_type_p.iteritems():
+                for p, num_type_p in num_type.items():
+                    for t_type, num_type_t in num_type_p.items():
                         if geometry == 'plates':
                             for sx, sy in np.random.random_sample((num_type_t, 2)):
                                 x, y = sx * box[0], sy * box[1]
@@ -233,7 +233,7 @@ if explicit:
                                             (x, y, 0.0,
                                              str(t_type), str(p)))
                         elif geometry == 'spheres':
-                            for tether in xrange(num_type_t):
+                            for tether in range(num_type_t):
                                 r = spheres.sphere_info[p]['radius']
                                 x, y, z = random_point_sphere(r)
                                 f.write('%.7g\t%.7g\t%.7g\t%s\t%s\n' %
@@ -283,7 +283,7 @@ if explicit:
         dtype={'names': ('x', 'y', 'z', 'type', 'particle'),
                'formats': ('d', 'd', 'd', 'S25', 'S25')})
 
-    print "Number of explicit tethers: %d" % tethers.shape[0]
+    print("Number of explicit tethers: %d" % tethers.shape[0])
 
     # Set up system, and record strand ids of each strand type
     strands_of_type = defaultdict(set)
@@ -317,9 +317,9 @@ if explicit:
 
         if t_type not in strand_types:
             strand_types.add(t_type)
-            print("Added strand type %s while reading %s "
+            print(("Added strand type %s while reading %s "
                   "(it won't bind to anything, though!)" %
-                  (str(t_type), explicit_tethers_file))
+                  (str(t_type), explicit_tethers_file)))
 
         strands_of_type[t_type, p_name].add(strand_id)
 
@@ -331,8 +331,8 @@ else:
     # are also put in different sets to distinguish between inter- (bridges)
     # and intra- (loops) particle bonds!
     strands_of_type = defaultdict(set)
-    for plate, plate_sigmas in sigma.iteritems():
-        for t_type, t_sigma in plate_sigmas.iteritems():
+    for plate, plate_sigmas in sigma.items():
+        for t_type, t_sigma in plate_sigmas.items():
             if t_sigma < 0:
                 raise ValueError("Negative density %g nm^-2 "
                                  "of strands of type %s on plate %s" %
@@ -346,17 +346,17 @@ else:
 
             strands_of_type[t_type, plate].add(strand_id)
             strand_type = plates.tether_types[strand_id]
-            print("strand id %d, plate %s, "
+            print(("strand id %d, plate %s, "
                   "number of strands (in Lmax^2 area) %g, "
                   "length %g nm, type %s" %
                   (strand_id,
                    str(strand_type["plate"]),
                    strand_type["sigma"] * Lmax ** 2,
                    strand_type["L"] / nm,
-                   str(strand_type["sticky_end"])))
+                   str(strand_type["sticky_end"]))))
 
 # Set values of DeltaG0
-for (t_type1, t_type2), dg0 in dg.iteritems():
+for (t_type1, t_type2), dg0 in dg.items():
     system.beta_DeltaG0[t_type1, t_type2] = dg0
 
 # Now do calculations
@@ -368,7 +368,7 @@ if geometry == "spheres" and calculation == "potential" and not explicit:
     betaFPlate = [plates.at(h).free_energy_density for h in hArr]
 
     # Second, Derjaguin approximation
-    print "Sphere potential in file", output_file
+    print("Sphere potential in file", output_file)
     betaFSphere = dnacc.calc_spheres_potential(hArr, betaFPlate,
                                                R[0], R[1])
     with open(output_file, 'w') as f:
@@ -384,7 +384,7 @@ if geometry == "spheres" and calculation == "potential" and explicit:
     # Set the reference state to a collection of noninteracting spheres
     current_centres = dict()
     count = 0
-    for sph, info in spheres.sphere_info.iteritems():
+    for sph, info in spheres.sphere_info.items():
         
         current_centres[sph] = info['centre']
         
@@ -398,12 +398,12 @@ if geometry == "spheres" and calculation == "potential" and explicit:
     
     spheres.set_reference_now()
 
-    for sph, info in spheres.sphere_info.iteritems():
+    for sph, info in spheres.sphere_info.items():
         info['centre'] = current_centres[sph]
     spheres.update()
 
     # Now calculate potentials
-    print "Explicit sphere potential in file", output_file
+    print("Explicit sphere potential in file", output_file)
 
     with open(output_file, 'w') as f:
 
@@ -437,7 +437,7 @@ if geometry == "spheres" and calculation == "potential" and explicit:
         betaFRep = spheres.rep_free_energy
         betaFAtt = spheres.binding_free_energy
         betaFTot = betaFRep + betaFAtt
-        print 'prova!', betaFTot
+        print('prova!', betaFTot)
 
 
 elif geometry == "plates" and calculation == "potential":
@@ -445,7 +445,7 @@ elif geometry == "plates" and calculation == "potential":
     # First, plate-plate potential
     plates.at(2.1 * Lmax).set_reference_now()
 
-    print "Plate potential in file", output_file
+    print("Plate potential in file", output_file)
     with open(output_file, 'w') as f:
 
         f.write('# h / Lmax\t'
@@ -470,7 +470,7 @@ elif geometry == "plates" and calculation == "potential":
 
 elif geometry == "plates" and calculation == "potential vs temperature":
 
-    print "Plate potential in file", output_file
+    print("Plate potential in file", output_file)
     with open(output_file, 'w') as f:
 
         f.write('# dgmin\t'
@@ -485,7 +485,7 @@ elif geometry == "plates" and calculation == "potential vs temperature":
 
             # If intra-particle bonding is possible, the free energy of
             # the reference state must be recalculated for every deltag
-            print "There's a better way to do this"
+            print("There's a better way to do this")
             plates.at(2.1 * Lmax).set_reference_now()
             plates.at(distance)
             plates.update()
@@ -507,8 +507,8 @@ elif geometry == "plates" and calculation == "potential vs temperature":
 
 elif geometry == "plates" and calculation == "number of bonds":
 
-    print("Calculate number of bonds at distance %g nm" % (distance / nm))
-    print("Plate file with number of bonds in %s" % output_file)
+    print(("Calculate number of bonds at distance %g nm" % (distance / nm)))
+    print(("Plate file with number of bonds in %s" % output_file))
 
     if not explicit:
 
@@ -530,8 +530,8 @@ elif geometry == "plates" and calculation == "number of bonds":
                 set_calculated_couples = set()
                 
                 max_strand = len(plates.tether_types)
-                for strand1 in xrange(max_strand):
-                    for strand2 in xrange(max_strand):
+                for strand1 in range(max_strand):
+                    for strand2 in range(max_strand):
                         couple = tuple(sorted((strand1, strand2)))
                         type1 = plates.tether_types[strand1]['sticky_end']
                         type2 = plates.tether_types[strand2]['sticky_end']
@@ -553,11 +553,11 @@ elif geometry == "plates" and calculation == "number of bonds":
     else:
 
         # Explicit-tethers
-        print('Calculating entropic costs at distance %g nm' %
-              (distance / nm))
+        print(('Calculating entropic costs at distance %g nm' %
+              (distance / nm)))
         plates.at(distance)
         plates.update()
-        print 'Done'
+        print('Done')
 
         with open(str(output_file), 'w') as f:
             f.write('# beta * DeltaGMin\t' 'nbonds (xtype)\n')
@@ -572,8 +572,8 @@ elif geometry == "plates" and calculation == "number of bonds":
 
                 # Count bonds by type
                 set_calculated_couples = set()
-                for j in strands_of_type.iterkeys():
-                    for k in strands_of_type.iterkeys():
+                for j in strands_of_type.keys():
+                    for k in strands_of_type.keys():
                         type_j = j[0]
                         type_k = k[0]
                         if (type_j, type_k) in orig_beta_DeltaG0:
@@ -590,9 +590,9 @@ elif geometry == "plates" and calculation == "number of bonds":
 
 if predefined_patches and calculation == "number of bonds":
 
-    print "Calculate number of bonds at distance:", distance
-    print "Number of bonds in", output_file
-    print 'Calculate entropic costs for current configuration'
+    print("Calculate number of bonds at distance:", distance)
+    print("Number of bonds in", output_file)
+    print('Calculate entropic costs for current configuration')
     spheres.update()
     
     with open(str(output_file), 'w') as f:
@@ -607,8 +607,8 @@ if predefined_patches and calculation == "number of bonds":
             spheres.update(DeltaG0_only=True)
 
             set_calculated_couples = set()
-            for j in strands_of_type.iterkeys():
-                for k in strands_of_type.iterkeys():
+            for j in strands_of_type.keys():
+                for k in strands_of_type.keys():
                     type_j = j[0]
                     type_k = k[0]
                     if (type_j, type_k) in orig_beta_DeltaG0:
