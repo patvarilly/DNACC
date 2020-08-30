@@ -15,6 +15,8 @@ This program accompanies the papers:
      “Communication: A simple analytical formula for the free energy of ligand-receptor-mediated interactions”. 
      The Journal of Chemical Physics, 138:021102–021106, 2013.
      arXiv:1211.1873 (2013).
+     
+We kindly ask to cite those papers in any publication where this code is used.
 
 0. Downloading
 --------------
