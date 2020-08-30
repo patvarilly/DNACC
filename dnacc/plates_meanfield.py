@@ -196,7 +196,7 @@ class PlatesMeanField(object):
         for i, t in enumerate(self.tether_types):
 
             if (all(prop in t for prop in kwargs) and
-                all(t[prop] == val for prop, val in kwargs.iteritems())):
+                all(t[prop] == val for prop, val in kwargs.items())):
 
                 result.add(i)
 

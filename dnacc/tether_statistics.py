@@ -271,13 +271,13 @@ class RodsGraftedOnPlates(object):
         # Sneaky indexing to support PBCs if necessary
         cells = np.empty((num_cells[0] + 2, num_cells[1] + 2),
                          dtype=object)
-        for i in xrange(-1, num_cells[0] + 1):
-            for j in xrange(-1, num_cells[1] + 1):
+        for i in range(-1, num_cells[0] + 1):
+            for j in range(-1, num_cells[1] + 1):
                 cells[i, j] = []
 
         if system.periodic:
-            for i in xrange(-1, num_cells[0] + 1):
-                for j in xrange(-1, num_cells[1] + 1):
+            for i in range(-1, num_cells[0] + 1):
+                for j in range(-1, num_cells[1] + 1):
                     cells[i, j] = cells[i % num_cells[0],
                                         j % num_cells[1]]
 
@@ -292,8 +292,8 @@ class RodsGraftedOnPlates(object):
 
         # Build crude interaction list
         result = [[] for t in system.tethers]
-        for i in xrange(num_cells[0]):
-            for j in xrange(num_cells[1]):
+        for i in range(num_cells[0]):
+            for j in range(num_cells[1]):
                 for t_ij in cells[i, j]:
                     result[t_ij] += cells[i - 1, j]
                     result[t_ij] += cells[i, j]
@@ -791,7 +791,7 @@ class RodsGraftedOnSpheres(object):
 
         if not hasattr(system, 'sphere_info'):
             raise ValueError("System must define a sphere_info attribute")
-        for S in system.sphere_info.itervalues():
+        for S in system.sphere_info.values():
             try:
                 if len(S['centre']) != 3:
                     raise ValueError('Sphere centre must be an (x,y,z) tuple')
@@ -997,7 +997,7 @@ class RodsGraftedOnSpheres(object):
                       yHat * Li * sin(theta) * sin(phi) +
                       zHat * Li * cos(theta))
 
-            for Sj in system.sphere_info.itervalues():
+            for Sj in system.sphere_info.values():
                 rsj = np.asarray(Sj['centre'])
                 Rj = Sj['radius']
 

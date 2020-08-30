@@ -62,7 +62,7 @@ class TestGeneric(unittest.TestCase):
                                    dnacc.p_bound[1, 0])
             self.assertEqual(dnacc.p_bound[0, 0], 0.0)
             self.assertEqual(dnacc.p_bound[1, 2], 0.0)
-            self.assert_(dnacc.avg_num_bonds >= 0)
+            self.assertTrue(dnacc.avg_num_bonds >= 0)
 
     def test_count_bonds(self):
         N = 3

@@ -188,14 +188,14 @@ class csr_matrix_from_dict(object):
         nnz = len(d)
 
         indptr = np.zeros(M + 1, dtype='int32')
-        for i in xrange(M):
+        for i in range(M):
             indptr[i + 1] = indptr[i] + nnz_in_row[i]
 
         indices = np.zeros(nnz, dtype='int32')
         data = np.zeros(nnz)
 
         next_indptr = np.array(indptr, copy=True)
-        for (i, j), v in d.iteritems():
+        for (i, j), v in d.items():
             assert 0 <= i < M
             assert 0 <= j < N
             ind = next_indptr[i]
@@ -216,7 +216,7 @@ class csr_matrix_from_dict(object):
             raise KeyError('Item (%d,%d) out of range (matrix is %dx%d)' %
                            (i, j, M, N))
 
-        for ind in xrange(self.indptr[i], self.indptr[i + 1]):
+        for ind in range(self.indptr[i], self.indptr[i + 1]):
             if self.indices[ind] == j:
                 return self.data[ind]
         else:
@@ -249,8 +249,8 @@ def csr_matrix_items(mtx, row=None):
     indptr = mtx.indptr
     data = mtx.data
 
-    for i in xrange(mtx.shape[0]) if row is None else (row,):
-        for ind in xrange(indptr[i], indptr[i + 1]):
+    for i in range(mtx.shape[0]) if row is None else (row,):
+        for ind in range(indptr[i], indptr[i + 1]):
             yield (i, indices[ind]), data[ind]
 
 

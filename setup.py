@@ -42,9 +42,6 @@ import subprocess
 import sys
 import os
 
-if sys.version_info[0] >= 3:
-    print "WARNING: DNACC has not been tested on Python 3"
-
 CLASSIFIERS = """\
 Development Status :: 4 - Beta
 Intended Audience :: Science/Research
@@ -133,16 +130,16 @@ if sys.platform == 'darwin':
         import numpy
         import scipy
     except ImportError:
-        print """
+        print("""
 
 FATAL ERROR: NumPy and SciPy both need to be installed to install DNACC.
 Ordinarily, they would be installed automatically, but this seems to be
 very problematic in OS X.  Fortunately, there are easy-to-install binaries
 available for download.
 
-Please read the README.txt file for installation instructions.
+Please read the README.md file for installation instructions.
 
-"""
+""")
         exit()
 
 # We need NumPy installed to find out the NumPy include dirs!
@@ -151,7 +148,7 @@ try:
     import numpy
     numpy_includes = [numpy.get_include()]
 except ImportError:
-    print """
+    print("""
 
 WARNING: numpy isn't installed!!!
 
@@ -159,7 +156,7 @@ It should be downloaded automatically, but from there on, the
 installation will fail.  Simply run the installation again once
 numpy has been installed.
 
-"""
+""")
     numpy_includes = []
 
 # Rewrite version file every time

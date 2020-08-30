@@ -117,4 +117,4 @@ from .spheres import *
 from .derjaguin import *
 from .patches import *
 from .generic import *
-import utils
+from . import utils
