@@ -22,7 +22,7 @@ setup(
     license="BSD",
     zip_safe=False,
     install_requires=["Sphinx >= 1.0.1"],
-    package_data={'numpydoc': 'tests', '': ''},
+    #package_data={'numpydoc': 'tests', '': ''},
     entry_points={
         "console_scripts": [
             "autosummary_generate = numpydoc.autosummary_generate:main",
